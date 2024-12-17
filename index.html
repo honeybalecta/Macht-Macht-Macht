@@ -98,7 +98,7 @@ const questions = [
     // Organisationsgrad (Textfrage)
     { name: "orggrad", type: "text", question: "Bitte geben Sie den Organisationsgrad der Berufsgruppe in % an (0-100):" },
 
-    // Strukturelle Macht (Radiofragen ohne "Weiter" nötig)
+    // Strukturelle Macht (Radiofragen)
     { name: "str1", type: "radio", question: "Können Beschäftigte durch Arbeitsniederlegung den Betrieb innerhalb von 1 Stunde stilllegen?", options: ["ja","nein"] },
     { name: "str2", type: "radio", question: "Können Beschäftigte durch Arbeitsniederlegung den Betrieb innerhalb von 8 Stunden stilllegen?", options: ["ja","nein"] },
     { name: "str3", type: "radio", question: "Können Beschäftigte durch Arbeitsniederlegung den Betrieb innerhalb von 3 Tagen stilllegen?", options: ["ja","nein"] },
@@ -189,7 +189,6 @@ function showQuestion(index) {
             }
             btn.addEventListener('click', () => {
                 answers[q.name] = opt;
-                // Validierung (nur bei orggrad nötig, ist aber text)
                 goToNextQuestion();
             });
             optionsContainer.appendChild(btn);
@@ -261,21 +260,21 @@ function showResults() {
     const institutionell_100 = institutionell * 10;
     const gesellschaftlich_100 = gesellschaftlich * 10;
 
+    // Neue Reihenfolge: Strukturelle Macht oben, dann Organisationsgrad, dann Organisationsmacht, Institutionelle Macht, Gesellschaftliche Macht
     resultTitle.textContent = `Machtressourcen ${berufsgruppeName} ${betriebName}`;
 
-    // Chart erstellen
     const ctx = document.getElementById('radarChart').getContext('2d');
     const data = {
         labels: [
-            'Organisationsgrad', 
             'Strukturelle Macht', 
+            'Organisationsgrad', 
             'Organisationsmacht', 
             'Institutionelle Macht', 
             'Gesellschaftliche Macht'
         ],
         datasets: [{
             label: 'Machtressourcen',
-            data: [orggrad, strukturell_100, organisation_100, institutionell_100, gesellschaftlich_100],
+            data: [strukturell_100, orggrad, organisation_100, institutionell_100, gesellschaftlich_100],
             fill: true,
             backgroundColor: 'rgba(54, 162, 235, 0.2)',
             borderColor: 'rgb(54, 162, 235)',
