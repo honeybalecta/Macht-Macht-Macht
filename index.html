@@ -91,14 +91,14 @@ button {
 <script>
 // Alle Fragen in einem Array definieren.
 const questions = [
-    // Betrieb & Berufsgruppe
+    // Betrieb & Berufsgruppe (Textfragen mit "Weiter")
     { name: "betriebName", type: "text", question: "Bitte geben Sie den Namen des Betriebs ein:" },
     { name: "berufsgruppeName", type: "text", question: "Bitte geben Sie die Berufsgruppe ein:" },
 
-    // Organisationsgrad
+    // Organisationsgrad (Textfrage)
     { name: "orggrad", type: "text", question: "Bitte geben Sie den Organisationsgrad der Berufsgruppe in % an (0-100):" },
 
-    // Strukturelle Macht (10 Fragen)
+    // Strukturelle Macht (Radiofragen ohne "Weiter" nötig)
     { name: "str1", type: "radio", question: "Können Beschäftigte durch Arbeitsniederlegung den Betrieb innerhalb von 1 Stunde stilllegen?", options: ["ja","nein"] },
     { name: "str2", type: "radio", question: "Können Beschäftigte durch Arbeitsniederlegung den Betrieb innerhalb von 8 Stunden stilllegen?", options: ["ja","nein"] },
     { name: "str3", type: "radio", question: "Können Beschäftigte durch Arbeitsniederlegung den Betrieb innerhalb von 3 Tagen stilllegen?", options: ["ja","nein"] },
@@ -110,7 +110,7 @@ const questions = [
     { name: "str9", type: "radio", question: "Gibt es ein informelles Netzwerk zur schnellen Mobilisierung?", options: ["ja","nein"] },
     { name: "str10", type: "radio", question: "Hat die Berufsgruppe Zugang zu Informationen für strategische Arbeitsniederlegungen?", options: ["ja","nein"] },
 
-    // Organisationsmacht (10 Fragen)
+    // Organisationsmacht (Radiofragen)
     { name: "org1", type: "radio", question: "Gibt es einen Betriebsrat oder Personalrat?", options: ["ja","nein"] },
     { name: "org2", type: "radio", question: "Gibt es einen Betriebsrat oder Personalrat mit ver.di-Mehrheit?", options: ["ja","nein"] },
     { name: "org3", type: "radio", question: "Ist der Betriebsrat/Personalrat arbeitsfähig?", options: ["ja","nein"] },
@@ -122,7 +122,7 @@ const questions = [
     { name: "org9", type: "radio", question: "Ist die Belegschaft im Allgemeinen mit der BR/PR-Arbeit zufrieden?", options: ["ja","nein"] },
     { name: "org10", type: "radio", question: "Werden regelmäßige Sprechstunden oder Foren für Beschäftigte angeboten?", options: ["ja","nein"] },
 
-    // Institutionelle Macht (10 Fragen)
+    // Institutionelle Macht (Radiofragen)
     { name: "ins1", type: "radio", question: "Existiert ein Betriebsrat?", options: ["ja","nein"] },
     { name: "ins2", type: "radio", question: "Gibt es Freistellungen im Betriebsrat?", options: ["ja","nein"] },
     { name: "ins3", type: "radio", question: "Tagt der Betriebsrat regelmäßig?", options: ["ja","nein"] },
@@ -134,7 +134,7 @@ const questions = [
     { name: "ins9", type: "radio", question: "Werden Tarifverträge regelmäßig aktualisiert oder nachverhandelt?", options: ["ja","nein"] },
     { name: "ins10", type: "radio", question: "Gibt es ein etabliertes Schlichtungsverfahren bei Konflikten?", options: ["ja","nein"] },
 
-    // Gesellschaftliche Macht (10 Fragen)
+    // Gesellschaftliche Macht (Radiofragen)
     { name: "ges1", type: "radio", question: "Gab es in den letzten 12 Monaten mediale Berichterstattung zum Betrieb?", options: ["ja","nein"] },
     { name: "ges2", type: "radio", question: "Gab es mediale Berichterstattung mit gewerkschaftlichem Bezug?", options: ["ja","nein"] },
     { name: "ges3", type: "radio", question: "Wurden eigene Pressemeldungen herausgegeben?", options: ["ja","nein"] },
@@ -168,12 +168,15 @@ function showQuestion(index) {
     questionContainer.appendChild(questionEl);
 
     if (q.type === 'text') {
+        // Textfrage: zeigt ein Input-Feld und den Weiter-Button
         const input = document.createElement('input');
         input.type = 'text';
         input.name = q.name;
         input.value = answers[q.name] || '';
         questionContainer.appendChild(input);
+        nextBtn.style.display = 'inline-block'; // Weiter-Button anzeigen
     } else if (q.type === 'radio') {
+        // Radiofrage: ja/nein als Buttons, bei Klick direkt weiter
         const optionsContainer = document.createElement('div');
         optionsContainer.className = 'options';
         
@@ -185,16 +188,14 @@ function showQuestion(index) {
                 btn.classList.add('selected');
             }
             btn.addEventListener('click', () => {
-                // Auswahl speichern
                 answers[q.name] = opt;
-                // Andere Buttons deselecten
-                const siblings = optionsContainer.querySelectorAll('.optionButton');
-                siblings.forEach(s => s.classList.remove('selected'));
-                btn.classList.add('selected');
+                // Validierung (nur bei orggrad nötig, ist aber text)
+                goToNextQuestion();
             });
             optionsContainer.appendChild(btn);
         });
         questionContainer.appendChild(optionsContainer);
+        nextBtn.style.display = 'none'; // Kein Weiter bei Radio nötig
     }
 
     backBtn.style.display = index === 0 ? 'none' : 'inline-block';
@@ -202,29 +203,38 @@ function showQuestion(index) {
 }
 
 function saveAnswer() {
+    // Nur für Textfragen notwendig
     const q = questions[currentQuestionIndex];
-    let val = answers[q.name]; // bereits durch Button-Klick gesetzt oder bei Textfrage
     if (q.type === 'text') {
-        val = questionContainer.querySelector('input[type="text"]').value.trim();
+        let val = questionContainer.querySelector('input[type="text"]').value.trim();
         answers[q.name] = val;
-    } else if (q.type === 'radio') {
-        // Muss ja oder nein gewählt sein
-        if (!val) {
-            alert("Bitte eine Antwort auswählen.");
-            return false;
+
+        if (q.name === 'orggrad') {
+            const num = parseInt(val, 10);
+            if (isNaN(num) || num < 0 || num > 100) {
+                alert("Bitte geben Sie einen gültigen Organisationsgrad zwischen 0 und 100 an.");
+                return false;
+            }
         }
     }
-
-    if (q.name === 'orggrad') {
-        // orggrad validieren
-        const num = parseInt(val, 10);
-        if (isNaN(num) || num < 0 || num > 100) {
-            alert("Bitte geben Sie einen gültigen Organisationsgrad zwischen 0 und 100 an.");
-            return false;
-        }
-    }
-
     return true;
+}
+
+function goToNextQuestion() {
+    if (currentQuestionIndex < questions.length - 1) {
+        currentQuestionIndex++;
+        showQuestion(currentQuestionIndex);
+    } else {
+        // Fertig
+        showResultsSection();
+    }
+}
+
+function showResultsSection() {
+    document.getElementById('questionContainer').style.display = 'none';
+    document.getElementById('navigationButtons').style.display = 'none';
+    resultSection.classList.remove('hidden');
+    showResults();
 }
 
 function showResults() {
@@ -306,22 +316,16 @@ function showResults() {
 
 // Navigation
 nextBtn.addEventListener('click', () => {
-    if (!saveAnswer()) return; // Nur weitermachen, wenn Antwort gültig gespeichert
-    if (currentQuestionIndex < questions.length - 1) {
-        currentQuestionIndex++;
-        showQuestion(currentQuestionIndex);
-    } else {
-        // Fertig
-        document.getElementById('questionContainer').style.display = 'none';
-        document.getElementById('navigationButtons').style.display = 'none';
-        resultSection.classList.remove('hidden');
-        showResults();
-    }
+    // Nur bei Textfragen nötig
+    if (!saveAnswer()) return;
+    goToNextQuestion();
 });
 
 backBtn.addEventListener('click', () => {
-    currentQuestionIndex--;
-    showQuestion(currentQuestionIndex);
+    if (currentQuestionIndex > 0) {
+        currentQuestionIndex--;
+        showQuestion(currentQuestionIndex);
+    }
 });
 
 // Erste Frage anzeigen
