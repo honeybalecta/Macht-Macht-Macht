@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Machtressourcen-Analyse</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+}
+
+h1, h2, h3 {
+    font-family: Arial, sans-serif;
+}
+
+#questionContainer {
+    margin-bottom: 30px;
+    max-width: 600px;
+}
+
+.questionText {
+    margin-bottom: 15px;
+    font-weight: bold;
+}
+
+.options {
+    display: flex;
+    gap: 10px;
+}
+
+.optionButton {
+    padding: 10px 15px;
+    font-size: 16px;
+    cursor: pointer;
+    background-color: #e0e0e0;
+    border: none;
+    border-radius: 5px;
+}
+
+.optionButton.selected {
+    background-color: #4caf50;
+    color: #ffffff;
+}
+
+#navigationButtons {
+    margin-top: 20px;
+}
+
+button {
+    margin: 5px;
+    padding: 10px 15px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.chart-container {
+    width: 600px;
+    margin-top: 40px;
+}
+
+.hidden {
+    display: none;
+}
+
+@media print {
+    button#printBtn, button#downloadBtn, button#backBtn, button#nextBtn {
+        display: none;
+    }
+}
+</style>
+</head>
+<body>
+<h1>Machtressourcen-Analyse</h1>
+<div id="questionContainer"></div>
+<div id="navigationButtons">
+    <button id="backBtn">Zurück</button>
+    <button id="nextBtn">Weiter</button>
+</div>
+
+<div id="resultSection" class="hidden">
+    <h2 id="resultTitle"></h2>
+    <div class="chart-container">
+        <canvas id="radarChart"></canvas>
+    </div>
+    <button id="printBtn">Drucken</button>
+    <button id="downloadBtn">Als PNG herunterladen</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Alle Fragen in einem Array definieren.
+const questions = [
+    // Betrieb & Berufsgruppe
+    { name: "betriebName", type: "text", question: "Bitte geben Sie den Namen des Betriebs ein:" },
+    { name: "berufsgruppeName", type: "text", question: "Bitte geben Sie die Berufsgruppe ein:" },
+
+    // Organisationsgrad
+    { name: "orggrad", type: "text", question: "Bitte geben Sie den Organisationsgrad der Berufsgruppe in % an (0-100):" },
+
+    // Strukturelle Macht (10 Fragen)
+    { name: "str1", type: "radio", question: "Können Beschäftigte durch Arbeitsniederlegung den Betrieb innerhalb von 1 Stunde stilllegen?", options: ["ja","nein"] },
+    { name: "str2", type: "radio", question: "Können Beschäftigte durch Arbeitsniederlegung den Betrieb innerhalb von 8 Stunden stilllegen?", options: ["ja","nein"] },
+    { name: "str3", type: "radio", question: "Können Beschäftigte durch Arbeitsniederlegung den Betrieb innerhalb von 3 Tagen stilllegen?", options: ["ja","nein"] },
+    { name: "str4", type: "radio", question: "Hat die Berufsgruppe schon einmal gestreikt?", options: ["ja","nein"] },
+    { name: "str5", type: "radio", question: "Führt die Berufsgruppe vereinzelt Aktionen durch?", options: ["ja","nein"] },
+    { name: "str6", type: "radio", question: "Ist die Berufsgruppe streikfähig und führt regelmäßige Aktionen durch?", options: ["ja","nein"] },
+    { name: "str7", type: "radio", question: "Ist die Berufsgruppe erzwingungsstreikfähig?", options: ["ja","nein"] },
+    { name: "str8", type: "radio", question: "Werden neue Mitglieder aktiv in Streik- oder Aktionsstrategien eingearbeitet?", options: ["ja","nein"] },
+    { name: "str9", type: "radio", question: "Gibt es ein informelles Netzwerk zur schnellen Mobilisierung?", options: ["ja","nein"] },
+    { name: "str10", type: "radio", question: "Hat die Berufsgruppe Zugang zu Informationen für strategische Arbeitsniederlegungen?", options: ["ja","nein"] },
+
+    // Organisationsmacht (10 Fragen)
+    { name: "org1", type: "radio", question: "Gibt es einen Betriebsrat oder Personalrat?", options: ["ja","nein"] },
+    { name: "org2", type: "radio", question: "Gibt es einen Betriebsrat oder Personalrat mit ver.di-Mehrheit?", options: ["ja","nein"] },
+    { name: "org3", type: "radio", question: "Ist der Betriebsrat/Personalrat arbeitsfähig?", options: ["ja","nein"] },
+    { name: "org4", type: "radio", question: "Ist der Betriebsrat/Personalrat fest in ver.di-Hand?", options: ["ja","nein"] },
+    { name: "org5", type: "radio", question: "Werden regelmäßig Schulungen für BR/PR-Mitglieder angeboten?", options: ["ja","nein"] },
+    { name: "org6", type: "radio", question: "Gibt es regelmäßigen Austausch zwischen BR/PR und Gewerkschaftsfunktionär*innen?", options: ["ja","nein"] },
+    { name: "org7", type: "radio", question: "Hat der BR/PR Zugang zu betrieblichen Ressourcen für seine Arbeit?", options: ["ja","nein"] },
+    { name: "org8", type: "radio", question: "Werden Beschlüsse des BR/PR transparent kommuniziert?", options: ["ja","nein"] },
+    { name: "org9", type: "radio", question: "Ist die Belegschaft im Allgemeinen mit der BR/PR-Arbeit zufrieden?", options: ["ja","nein"] },
+    { name: "org10", type: "radio", question: "Werden regelmäßige Sprechstunden oder Foren für Beschäftigte angeboten?", options: ["ja","nein"] },
+
+    // Institutionelle Macht (10 Fragen)
+    { name: "ins1", type: "radio", question: "Existiert ein Betriebsrat?", options: ["ja","nein"] },
+    { name: "ins2", type: "radio", question: "Gibt es Freistellungen im Betriebsrat?", options: ["ja","nein"] },
+    { name: "ins3", type: "radio", question: "Tagt der Betriebsrat regelmäßig?", options: ["ja","nein"] },
+    { name: "ins4", type: "radio", question: "Gab es erfolgreiche Arbeitsgerichts- oder Einigungsstellenverfahren in den letzten 2 Jahren?", options: ["ja","nein"] },
+    { name: "ins5", type: "radio", question: "Existiert ein Tarifvertrag?", options: ["ja","nein"] },
+    { name: "ins6", type: "radio", question: "Findet ein Tarifvertrag Anwendung?", options: ["ja","nein"] },
+    { name: "ins7", type: "radio", question: "Wurde der Tarifvertrag erstreikt?", options: ["ja","nein"] },
+    { name: "ins8", type: "radio", question: "Ist die Mehrzahl der Beschäftigten vom Tarifvertrag erfasst?", options: ["ja","nein"] },
+    { name: "ins9", type: "radio", question: "Werden Tarifverträge regelmäßig aktualisiert oder nachverhandelt?", options: ["ja","nein"] },
+    { name: "ins10", type: "radio", question: "Gibt es ein etabliertes Schlichtungsverfahren bei Konflikten?", options: ["ja","nein"] },
+
+    // Gesellschaftliche Macht (10 Fragen)
+    { name: "ges1", type: "radio", question: "Gab es in den letzten 12 Monaten mediale Berichterstattung zum Betrieb?", options: ["ja","nein"] },
+    { name: "ges2", type: "radio", question: "Gab es mediale Berichterstattung mit gewerkschaftlichem Bezug?", options: ["ja","nein"] },
+    { name: "ges3", type: "radio", question: "Wurden eigene Pressemeldungen herausgegeben?", options: ["ja","nein"] },
+    { name: "ges4", type: "radio", question: "Gab es Presseanfragen?", options: ["ja","nein"] },
+    { name: "ges5", type: "radio", question: "Werden eigene Kanäle auf sozialen Netzwerken aktiv betrieben?", options: ["ja","nein"] },
+    { name: "ges6", type: "radio", question: "Existieren aktive externe Kooperationspartner?", options: ["ja","nein"] },
+    { name: "ges7", type: "radio", question: "Findet regelmäßig Teilnahme an politischen Gremien statt?", options: ["ja","nein"] },
+    { name: "ges8", type: "radio", question: "Gab es Expert*innenbefragungen oder Anhörungen?", options: ["ja","nein"] },
+    { name: "ges9", type: "radio", question: "Werden öffentliche Veranstaltungen oder Aktionen organisiert?", options: ["ja","nein"] },
+    { name: "ges10", type: "radio", question: "Bestehen langfristige Allianzen mit anderen gesellschaftlichen Gruppen oder NGOs?", options: ["ja","nein"] }
+];
+
+// Antworten speichern
+const answers = {};
+let currentQuestionIndex = 0;
+
+const questionContainer = document.getElementById('questionContainer');
+const backBtn = document.getElementById('backBtn');
+const nextBtn = document.getElementById('nextBtn');
+const resultSection = document.getElementById('resultSection');
+const resultTitle = document.getElementById('resultTitle');
+const printBtn = document.getElementById('printBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+
+function showQuestion(index) {
+    const q = questions[index];
+    questionContainer.innerHTML = '';
+    const questionEl = document.createElement('div');
+    questionEl.className = 'questionText';
+    questionEl.textContent = q.question;
+    questionContainer.appendChild(questionEl);
+
+    if (q.type === 'text') {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.name = q.name;
+        input.value = answers[q.name] || '';
+        questionContainer.appendChild(input);
+    } else if (q.type === 'radio') {
+        const optionsContainer = document.createElement('div');
+        optionsContainer.className = 'options';
+        
+        q.options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'optionButton';
+            btn.textContent = opt.charAt(0).toUpperCase() + opt.slice(1);
+            if (answers[q.name] === opt) {
+                btn.classList.add('selected');
+            }
+            btn.addEventListener('click', () => {
+                // Auswahl speichern
+                answers[q.name] = opt;
+                // Andere Buttons deselecten
+                const siblings = optionsContainer.querySelectorAll('.optionButton');
+                siblings.forEach(s => s.classList.remove('selected'));
+                btn.classList.add('selected');
+            });
+            optionsContainer.appendChild(btn);
+        });
+        questionContainer.appendChild(optionsContainer);
+    }
+
+    backBtn.style.display = index === 0 ? 'none' : 'inline-block';
+    nextBtn.textContent = (index === questions.length - 1) ? 'Fertig' : 'Weiter';
+}
+
+function saveAnswer() {
+    const q = questions[currentQuestionIndex];
+    let val = answers[q.name]; // bereits durch Button-Klick gesetzt oder bei Textfrage
+    if (q.type === 'text') {
+        val = questionContainer.querySelector('input[type="text"]').value.trim();
+        answers[q.name] = val;
+    } else if (q.type === 'radio') {
+        // Muss ja oder nein gewählt sein
+        if (!val) {
+            alert("Bitte eine Antwort auswählen.");
+            return false;
+        }
+    }
+
+    if (q.name === 'orggrad') {
+        // orggrad validieren
+        const num = parseInt(val, 10);
+        if (isNaN(num) || num < 0 || num > 100) {
+            alert("Bitte geben Sie einen gültigen Organisationsgrad zwischen 0 und 100 an.");
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function showResults() {
+    // Auswertung
+    function countYes(prefix) {
+        let sum = 0;
+        for (let i = 1; i <= 10; i++) {
+            if (answers[prefix + i] === 'ja') sum++;
+        }
+        return sum;
+    }
+
+    const betriebName = answers['betriebName'] || '';
+    const berufsgruppeName = answers['berufsgruppeName'] || '';
+    const orggrad = parseInt(answers['orggrad'], 10) || 0;
+
+    const strukturell = countYes('str');
+    const organisation = countYes('org');
+    const institutionell = countYes('ins');
+    const gesellschaftlich = countYes('ges');
+
+    const strukturell_100 = strukturell * 10;
+    const organisation_100 = organisation * 10;
+    const institutionell_100 = institutionell * 10;
+    const gesellschaftlich_100 = gesellschaftlich * 10;
+
+    resultTitle.textContent = `Machtressourcen ${berufsgruppeName} ${betriebName}`;
+
+    // Chart erstellen
+    const ctx = document.getElementById('radarChart').getContext('2d');
+    const data = {
+        labels: [
+            'Organisationsgrad', 
+            'Strukturelle Macht', 
+            'Organisationsmacht', 
+            'Institutionelle Macht', 
+            'Gesellschaftliche Macht'
+        ],
+        datasets: [{
+            label: 'Machtressourcen',
+            data: [orggrad, strukturell_100, organisation_100, institutionell_100, gesellschaftlich_100],
+            fill: true,
+            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+            borderColor: 'rgb(54, 162, 235)',
+            pointBackgroundColor: 'rgb(54, 162, 235)',
+            pointBorderColor: '#fff',
+        }]
+    };
+    const config = {
+        type: 'radar',
+        data: data,
+        options: {
+            scales: {
+                r: {
+                    suggestedMin: 0,
+                    suggestedMax: 100,
+                    ticks: {
+                        stepSize: 10
+                    }
+                }
+            }
+        }
+    };
+    const chart = new Chart(ctx, config);
+
+    // Print
+    printBtn.addEventListener('click', () => {
+        window.print();
+    });
+
+    // Download PNG
+    downloadBtn.addEventListener('click', () => {
+        const link = document.createElement('a');
+        link.download = `Machtressourcen_${berufsgruppeName}_${betriebName}.png`;
+        link.href = chart.toBase64Image();
+        link.click();
+    });
+}
+
+// Navigation
+nextBtn.addEventListener('click', () => {
+    if (!saveAnswer()) return; // Nur weitermachen, wenn Antwort gültig gespeichert
+    if (currentQuestionIndex < questions.length - 1) {
+        currentQuestionIndex++;
+        showQuestion(currentQuestionIndex);
+    } else {
+        // Fertig
+        document.getElementById('questionContainer').style.display = 'none';
+        document.getElementById('navigationButtons').style.display = 'none';
+        resultSection.classList.remove('hidden');
+        showResults();
+    }
+});
+
+backBtn.addEventListener('click', () => {
+    currentQuestionIndex--;
+    showQuestion(currentQuestionIndex);
+});
+
+// Erste Frage anzeigen
+showQuestion(currentQuestionIndex);
+</script>
+</body>
+</html>
